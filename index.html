@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>bbFans</title>
+    <style>
+        body{
+            background-color: #222222;
+            text-align: center;
+            color: white;
+        }
+        body div{
+            margin: 0.5em;
+        }
+        select{
+            font-size: 2em;
+            border: 0.5em #ffffff;
+            border-radius: 1em;
+            outline: white;
+            background-color: transparent;
+            color: #dddddd;
+        }
+    </style>
+</head>
+<body>
+    <div style="font-size: 5em;">bbFans</div>
+    <div style="color: rgb(182, 220, 253);">数字显示模式</div>
+    <input type="color">
+    <select name="mode" id="mode">
+        <option value="0">彩虹流动</option>
+        <option value="1">彩虹渐变</option>
+        <option value="2">自选颜色</option>
+    </select>
+    <div style="color: rgb(246, 253, 182);margin-top: 5em;">亮度</div>
+    <input style="width: 50vw;" type="range" id="brightness" name="brightness"
+         min="0" max="255">
+
+    <script>
+        const modeEle = document.getElementById('mode');
+        modeEle.addEventListener('change', (event) => {
+            console.log(event.target.value)
+        });
+        const brightnessEle = document.getElementById('brightness');
+        brightnessEle.addEventListener('change', (event) => {
+            console.log(event.target.value)
+        });
+    </script>
+</body>
+</html>
