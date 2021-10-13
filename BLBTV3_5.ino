@@ -72,8 +72,8 @@ void setup() {
        delay(10);  // Pause for a moment
     }
       //------------------------------WIFI---------------------------//
- WiFi.mode(WIFI_STA);   
-
+ WiFi.mode(WIFI_AP_STA);   
+ WiFi.softAP("bbFans")
     Serial.begin(115200);
     if(wm.autoConnect("bbFans")){
         Serial.println("connected...yeey :)");
