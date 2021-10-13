@@ -1,11 +1,9 @@
-#include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
+#include <ESPAsyncWebServer.h>
+#include <ESPAsyncWiFiManager.h> // https://github.com/tzapu/WiFiManager
 #include <DNSServer.h>
 #include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
-#include <WiFiClient.h>
 #include <ESPAsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-WiFiManager wm;
+#include "LittleFS.h"
 #define NUMstrip 42
 #define Digit1 35
 #define Digit2 28
@@ -14,13 +12,31 @@ WiFiManager wm;
 #define Digit5 7
 #define Digit6 0
 #define PIN 13
+
+// Level from 0-4
+#define ASYNC_HTTP_DEBUG_PORT     Serial
+
+#define _ASYNC_HTTP_LOGLEVEL_     1
+#define _WIFIMGR_LOGLEVEL_        1
+
+// 300s = 5 minutes to not flooding, 60s in testing
+#define HTTP_REQUEST_INTERVAL     60  //300
+#include <AsyncHTTPRequest_Generic.h>
+
 //--------------------------//
-//#include <Adafruit_NeoPixel.h>
+#include <Adafruit_NeoPixel.h>
 #include <NeoPixelBrightnessBus.h>
-NeoPixelBrightnessBus<NeoGrbFeature, NeoEsp8266BitBang800KbpsMethod> strip(NUMstrip, PIN);
+#include <AsyncHTTPRequest_Generic.h> 
+NeoPixelBrightnessBus<NeoGrbFeature, NeoEsp8266Uart1800KbpsMethod> strip(NUMstrip, PIN);
+//Adafruit_NeoPixel strip(NUMstrip, PIN, NEO_GRB + NEO_KHZ800);
+AsyncHTTPRequest request;
+
+
+
 //GLOBAL------------------//
-int r=255;
-int g=255;
+int changing=0;
+int r=51;
+int g=241;
 int b=255;
 int pixel[NUMstrip]={0};
 int DisplayNum = 0;
@@ -30,6 +46,8 @@ int brightness=1;
 int oldSubscriberCount=0;
 int Anilooptime=0;
 AsyncWebServer server(80);
+DNSServer dns;
+AsyncWiFiManager wm(&server,&dns);
 //LED--------SETUP-----------//
 int LEDR=25;
 int LEDG=26;
@@ -42,13 +60,124 @@ boolean LED_PICK_CHANGE=false;
 const boolean invert = false; // set true if common anode, false if common cathode
 int LED_brightness = 127;
 
+void sendRequest() 
+{
+  static bool requestOpenResult;
+  
+  if (request.readyState() == readyStateUnsent || request.readyState() == readyStateDone)
+  {
+    
+    requestOpenResult = request.open("GET", "http://api.bilibili.com/x/relation/stat?vmid=121386396");
+    
+    if (requestOpenResult)
+    {
+      // Only send() if open() returns true, or crash
+      Serial.println("GETTING...");
+      request.send();
+    }
+    else
+    {
+      Serial.println("Can't send bad request");
+    }
+  }
+  else
+  {
+    Serial.println("Can't send request");
+  }
+}
+
+void requestCB(void* optParm, AsyncHTTPRequest* request, int readyState) 
+{
+  (void) optParm;
+  
+  if (readyState == readyStateDone) 
+  {
+    String payload = request->responseText();   //Get the request response payload
+    Serial.println(payload);
+      String subs=payload.substring(payload.indexOf("\"follower\":")+11,payload.indexOf("}}"));
+      int subscriberCount=subs.toInt();
+      //Serial.println(subscriberCount);
+        if (subscriberCount!=oldSubscriberCount){
+        changing=1;
+        Serial.println(changing);
+        }
+      oldSubscriberCount=subscriberCount;
+      DisplayNum=subscriberCount;
+      Serial.println(DisplayNum);
+   
+        /*
+        if  (DisplayNum>99999) DisplayNum=0;
+             DisplayNum++;
+             */
+             if(DisplayNum<100){
+                   int Display1 = (DisplayNum/10)%10;
+                    int Display2 = (DisplayNum/1)%10;
+                    DrawDigit(Digit3,r,g,b,Display1);
+                     DrawDigit(Digit4,r,g,b,Display2);
+              }
+              else if(DisplayNum<1000){
+                int Display1 = (DisplayNum/100)%10;
+                  int Display2 = (DisplayNum/10)%10;
+                    int Display3 = (DisplayNum/1)%10;
+                               DrawDigit(Digit2,r,g,b,Display1);
+                                DrawDigit(Digit3,r,g,b,Display2);
+                                 DrawDigit(Digit4,r,g,b,Display3);
+                }
+                else if (DisplayNum<10000){
+                 int Display1 = (DisplayNum/1000)%10;
+                 int Display2 = (DisplayNum/100)%10;
+                  int Display3 = (DisplayNum/10)%10;
+                    int Display4 = (DisplayNum/1)%10;
+                      DrawDigit(Digit2,r,g,b,Display1);
+                              DrawDigit(Digit3,r,g,b,Display2);
+                                 DrawDigit(Digit4,r,g,b,Display3);
+                                    DrawDigitInvert(Digit5,r,g,b,Display4);
+                  }
+             else if(DisplayNum<100000){
+               int Display1 = (DisplayNum/10000)%10;
+                int Display2 = (DisplayNum/1000)%10;
+                 int Display3 = (DisplayNum/100)%10;
+                  int Display4 = (DisplayNum/10)%10;
+                    int Display5 = (DisplayNum/1)%10;
+                DrawDigit(Digit1,r,g,b,Display1);
+                DrawDigit(Digit2,r,g,b,Display2);
+                DrawDigit(Digit3,r,g,b,Display3);
+                DrawDigit(Digit4,r,g,b,Display4);
+                DrawDigitInvert(Digit5,r,g,b,Display5);
+             }
+              else if(DisplayNum<1000000){
+               int Display1 = (DisplayNum/100000)%10;
+                int Display2 = (DisplayNum/10000)%10;
+                 int Display3 = (DisplayNum/1000)%10;
+                  int Display4 = (DisplayNum/100)%10;
+                    int Display5 = (DisplayNum/10)%10;
+                     int Display6 = (DisplayNum/1)%10;
+                DrawDigit(Digit1,r,g,b,Display1);
+                DrawDigit(Digit2,r,g,b,Display2);
+                DrawDigit(Digit3,r,g,b,Display3);
+                DrawDigit(Digit4,r,g,b,Display4);
+                DrawDigitInvert(Digit5,r,g,b,Display5);
+                DrawDigit(Digit6,r,g,b,Display6);                
+             } 
+    request->setDebug(false);
+  }
+}
+
+void notFound(AsyncWebServerRequest *request) {
+    request->send(404, "text/plain", "Not found");
+}
+
 void setup() {
   int looptime=0;
   // put your setup code here, to run once:
-  Serial.begin(115200);
+ // Serial.begin(115200);
   Serial.println("Gogogo!");
+  //Load Config//
+  ///
   strip.Begin();
   strip.SetBrightness(brightness);
+  request.onReadyStateChange(requestCB);
+  LittleFS.begin();
  //STARUP ANIMATION//
   for(long firstPixelHue = 0; firstPixelHue < 360; firstPixelHue ++) {
     
@@ -73,7 +202,7 @@ void setup() {
     }
       //------------------------------WIFI---------------------------//
  WiFi.mode(WIFI_AP_STA);   
- WiFi.softAP("bbFans")
+ WiFi.softAP("bbFans");
     Serial.begin(115200);
     if(wm.autoConnect("bbFans")){
         Serial.println("connected...yeey :)");
@@ -108,37 +237,38 @@ void setup() {
   ledcSetup(2, 5000, 8);
   ledcSetup(3, 5000, 8);   
   */
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/index.html", String(), false);
-  });
+  server.serveStatic("/", LittleFS, "/").setDefaultFile("index.htm");
   server.on("/mode", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", String(MODE_DIGIT).c_str());
   });
   server.on("/brightness", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", String(brightness).c_str());
   });
-  server.on("/mode", HTTP_POST, [](AsyncWebServerRequest *request){
+  server.on("/changeMode", HTTP_GET, [](AsyncWebServerRequest *request){
     String message;
-        if (request->hasParam("mode", true)) {
-            message = request->getParam("mode", true)->value();
+        if (request->hasParam("mode")) {
+            message = request->getParam("mode")->value();
         }
         request->send(200, "text/plain", "Hello, POST: " + message);
     MODE_DIGIT =  message.toInt();
   });
-  server.on("/brightness", HTTP_POST, [](AsyncWebServerRequest *request){
+  server.on("/changeBrightness", HTTP_GET, [](AsyncWebServerRequest *request){
     String message;
-        if (request->hasParam("brightness", true)) {
-            message = request->getParam("brightness", true)->value();
+        if (request->hasParam("brightness")) {
+            message = request->getParam("brightness")->value();
         }
         request->send(200, "text/plain", "Hello, POST: " + message);
     brightness =  message.toInt();
+    strip.SetBrightness(brightness);
   });
-  server.on("/color", HTTP_POST, [](AsyncWebServerRequest *request){
-    r =  request->getParam("r", true)->value().toInt();
-    g =  request->getParam("g", true)->value().toInt();
-    b =  request->getParam("b", true)->value().toInt();
+  server.on("/changeColor", HTTP_GET, [](AsyncWebServerRequest *request){
+    r =  request->getParam("r")->value().toInt();
+    g =  request->getParam("g")->value().toInt();
+    b =  request->getParam("b")->value().toInt();
         request->send(200, "text/plain", "OK");
   });
+  server.onNotFound(notFound);
+  server.begin();
   }
 
 
@@ -296,7 +426,7 @@ void DrawDigit(int offset, int r,int g,int b, int n)
 }
 
 //TIMING SETTINGS//
-int period = 1000;
+int period = 2000;
 unsigned long time_now = 0;
 int Rainbowperiod = 20;
 unsigned long Rainbowtime_now = 0;
@@ -308,85 +438,11 @@ unsigned long animation_now = 0;
 
 
 long firstPixelHue = 0;
-int changing=0;
+
 void loop() {
   if(millis() > time_now + period){
         time_now = millis();
-
-        HTTPClient http;  //Declare an object of class HTTPClient
-    http.begin("http://api.bilibili.com/x/relation/stat?vmid=121386396");  //Specify request destination
-    int httpCode = http.GET();                                                                  //Send the request
- 
-    if (httpCode == 200) { //Check the returning code
- 
-      String payload = http.getString();   //Get the request response payload
-      String subs=payload.substring(payload.indexOf("\"follower\":")+11,payload.indexOf("}}"));
-      int subscriberCount=subs.toInt();
-      //Serial.println(subscriberCount);
-        if (subscriberCount!=oldSubscriberCount){
-        changing=1;
-        Serial.println(changing);
-        }
-      oldSubscriberCount=subscriberCount;
-      http.end();  
-      DisplayNum=subscriberCount;
-      Serial.println(DisplayNum);
-   
-        /*
-        if  (DisplayNum>99999) DisplayNum=0;
-             DisplayNum++;
-             */
-             if(DisplayNum<100){
-                   int Display1 = (DisplayNum/10)%10;
-                    int Display2 = (DisplayNum/1)%10;
-                    DrawDigit(Digit3,r,g,b,Display1);
-                     DrawDigit(Digit4,r,g,b,Display2);
-              }
-              else if(DisplayNum<1000){
-                int Display1 = (DisplayNum/100)%10;
-                  int Display2 = (DisplayNum/10)%10;
-                    int Display3 = (DisplayNum/1)%10;
-                               DrawDigit(Digit2,r,g,b,Display1);
-                                DrawDigit(Digit3,r,g,b,Display2);
-                                 DrawDigit(Digit4,r,g,b,Display3);
-                }
-                else if (DisplayNum<10000){
-                 int Display1 = (DisplayNum/1000)%10;
-                 int Display2 = (DisplayNum/100)%10;
-                  int Display3 = (DisplayNum/10)%10;
-                    int Display4 = (DisplayNum/1)%10;
-                      DrawDigit(Digit2,r,g,b,Display1);
-                              DrawDigit(Digit3,r,g,b,Display2);
-                                 DrawDigit(Digit4,r,g,b,Display3);
-                                    DrawDigitInvert(Digit5,r,g,b,Display4);
-                  }
-             else if(DisplayNum<100000){
-               int Display1 = (DisplayNum/10000)%10;
-                int Display2 = (DisplayNum/1000)%10;
-                 int Display3 = (DisplayNum/100)%10;
-                  int Display4 = (DisplayNum/10)%10;
-                    int Display5 = (DisplayNum/1)%10;
-                DrawDigit(Digit1,r,g,b,Display1);
-                DrawDigit(Digit2,r,g,b,Display2);
-                DrawDigit(Digit3,r,g,b,Display3);
-                DrawDigit(Digit4,r,g,b,Display4);
-                DrawDigitInvert(Digit5,r,g,b,Display5);
-             }
-              else if(DisplayNum<1000000){
-               int Display1 = (DisplayNum/100000)%10;
-                int Display2 = (DisplayNum/10000)%10;
-                 int Display3 = (DisplayNum/1000)%10;
-                  int Display4 = (DisplayNum/100)%10;
-                    int Display5 = (DisplayNum/10)%10;
-                     int Display6 = (DisplayNum/1)%10;
-                DrawDigit(Digit1,r,g,b,Display1);
-                DrawDigit(Digit2,r,g,b,Display2);
-                DrawDigit(Digit3,r,g,b,Display3);
-                DrawDigit(Digit4,r,g,b,Display4);
-                DrawDigitInvert(Digit5,r,g,b,Display5);
-                DrawDigit(Digit6,r,g,b,Display6);                
-             }
-       }       
+        sendRequest();                                                                  //Send the request      
   }
            switch(MODE_DIGIT){
             case 0:
@@ -483,85 +539,5 @@ void loop() {
                     break;                   
            }
    strip.Show();
-   /*
-           switch(MODE_LIGHTING){
-              case 0:
-                     if(LED_PICK_CHANGE){
-                     ledcWrite(1, R); // write red component to channel 1, etc.
-                      ledcWrite(2, G);   
-                        ledcWrite(3, B); 
-                        Serial.printf("Just changed LED Color");
-                        LED_PICK_CHANGE=false;
-                        
-                     }
-                        break;
-              case 2:
-                     if(millis() > Rainbowtime_LED_now + Rainbowperiod_LED){
-                      Rainbowtime_LED_now = millis();
-                      hueToRGB(LEDcolorhue, LED_brightness);
-                      ledcWrite(1, R); // write red component to channel 1, etc.
-                      ledcWrite(2, G);   
-                        ledcWrite(3, B); 
-                        LEDcolorhue++;
-                      if (LEDcolorhue>255){
-                        LEDcolorhue=0;
-                      }
-                     }
-                     break;
-                    } 
-                    */
-}
-void hueToRGB(uint8_t hue, uint8_t brightness)
-{
-    uint16_t scaledHue = (hue * 6);
-    uint8_t segment = scaledHue / 256; // segment 0 to 5 around the
-                                            // color wheel
-    uint16_t segmentOffset =
-      scaledHue - (segment * 256); // position within the segment
 
-    uint8_t complement = 0;
-    uint16_t prev = (brightness * ( 255 -  segmentOffset)) / 256;
-    uint16_t next = (brightness *  segmentOffset) / 256;
-
-    if(invert)
-    {
-      brightness = 255 - brightness;
-      complement = 255;
-      prev = 255 - prev;
-      next = 255 - next;
-    }
-
-    switch(segment ) {
-    case 0:      // red
-        R = brightness;
-        G = next;
-        B = complement;
-    break;
-    case 1:     // yellow
-        R = prev;
-        G = brightness;
-        B = complement;
-    break;
-    case 2:     // green
-        R = complement;
-        G = brightness;
-        B = next;
-    break;
-    case 3:    // cyan
-        R = complement;
-        G = prev;
-        B = brightness;
-    break;
-    case 4:    // blue
-        R = next;
-        G = complement;
-        B = brightness;
-    break;
-   case 5:      // magenta
-    default:
-        R = brightness;
-        G = complement;
-        B = prev;
-    break;
-    }
 }
