@@ -133,6 +133,12 @@ void setup() {
         request->send(200, "text/plain", "Hello, POST: " + message);
     brightness =  message.toInt();
   });
+  server.on("/color", HTTP_POST, [](AsyncWebServerRequest *request){
+    r =  request->getParam("r", true)->value().toInt();
+    g =  request->getParam("g", true)->value().toInt();
+    b =  request->getParam("b", true)->value().toInt();
+        request->send(200, "text/plain", "OK");
+  });
   }
 
 
