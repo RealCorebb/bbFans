@@ -68,7 +68,7 @@
                 
               }
             };
-            xhttp.open("POST", "/mode?mode="+event.target.value, true);
+            xhttp.open("GET", "/changeMode?mode="+event.target.value, true);
             xhttp.send();
         });
         const brightnessEle = document.getElementById('brightness');
@@ -80,7 +80,7 @@
                 
               }
             };
-            xhttp.open("POST", "/brightness?brightness="+event.target.value, true);
+            xhttp.open("GET", "/changeBrightness?brightness="+event.target.value, true);
             xhttp.send();
         });
         
@@ -93,8 +93,7 @@
                 
               }
             };
-			hexToRgb("#0033ff").g
-            xhttp.open("POST", "/color?r="+hexToRgb(event.target.value).r+"&g="+hexToRgb(event.target.value).g+"&b="+hexToRgb(event.target.value).b, true);
+            xhttp.open("GET", "/changeColor?r="+hexToRgb(event.target.value).r+"&g="+hexToRgb(event.target.value).g+"&b="+hexToRgb(event.target.value).b, true);
             xhttp.send();
         });
 		function hexToRgb(hex) {
