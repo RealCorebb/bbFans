@@ -3,6 +3,8 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 WiFiManager wm;
 #define NUMstrip 42
 #define Digit1 35
@@ -27,6 +29,7 @@ uint32_t MODE_LIGHTING=2;            //0 color picker                     //2 Ra
 int brightness=1;
 int oldSubscriberCount=0;
 int Anilooptime=0;
+AsyncWebServer server(80);
 //LED--------SETUP-----------//
 int LEDR=25;
 int LEDG=26;
@@ -105,6 +108,31 @@ void setup() {
   ledcSetup(2, 5000, 8);
   ledcSetup(3, 5000, 8);   
   */
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/index.html", String(), false);
+  });
+  server.on("/mode", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/plain", String(MODE_DIGIT).c_str());
+  });
+  server.on("/brightness", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/plain", String(brightness).c_str());
+  });
+  server.on("/mode", HTTP_POST, [](AsyncWebServerRequest *request){
+    String message;
+        if (request->hasParam("mode", true)) {
+            message = request->getParam("mode", true)->value();
+        }
+        request->send(200, "text/plain", "Hello, POST: " + message);
+    MODE_DIGIT =  message.toInt();
+  });
+  server.on("/brightness", HTTP_POST, [](AsyncWebServerRequest *request){
+    String message;
+        if (request->hasParam("brightness", true)) {
+            message = request->getParam("brightness", true)->value();
+        }
+        request->send(200, "text/plain", "Hello, POST: " + message);
+    brightness =  message.toInt();
+  });
   }
 
 
