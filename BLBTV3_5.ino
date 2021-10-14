@@ -3,6 +3,7 @@
 #include <DNSServer.h>
 #include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
+#include <ArduinoJson.h>
 #include "LittleFS.h"
 #define NUMstrip 42
 #define Digit1 35
@@ -173,6 +174,18 @@ void setup() {
  // Serial.begin(115200);
   Serial.println("Gogogo!");
   //Load Config//
+  File file = LittleFS.open("config.json", FILE_READ);
+  StaticJsonDocument<512> doc;
+  DeserializationError error = deserializeJson(doc, file);
+  if (error)
+    Serial.println(F("Failed to read file, using default configuration"));
+  else{
+    MODE_DIGIT = doc["MODE_DIGIT"];
+    brightness = doc["brightness"];
+    r = doc["r"];
+    g = doc["g"];
+    b = doc["b"];
+  }
   ///
   strip.Begin();
   strip.SetBrightness(brightness);
@@ -251,6 +264,8 @@ void setup() {
         }
         request->send(200, "text/plain", "Hello, POST: " + message);
     MODE_DIGIT =  message.toInt();
+    doc["MODE_DIGIT"] = MODE_DIGIT;
+    writeConfig();
   });
   server.on("/changeBrightness", HTTP_GET, [](AsyncWebServerRequest *request){
     String message;
@@ -260,17 +275,32 @@ void setup() {
         request->send(200, "text/plain", "Hello, POST: " + message);
     brightness =  message.toInt();
     strip.SetBrightness(brightness);
+    doc["brightness"] = brightness;
+    writeConfig();
   });
   server.on("/changeColor", HTTP_GET, [](AsyncWebServerRequest *request){
     r =  request->getParam("r")->value().toInt();
     g =  request->getParam("g")->value().toInt();
     b =  request->getParam("b")->value().toInt();
         request->send(200, "text/plain", "OK");
+    doc["r"] = r;
+    doc["g"] = g;
+    doc["b"] = b;
+    writeConfig();
   });
   server.onNotFound(notFound);
   server.begin();
   }
 
+void writeConfig(){
+  File file = LittleFS.open("config.json", FILE_WRITE);
+    if(file){
+      if (serializeJson(doc, file) == 0) {
+        Serial.println(F("Failed to write to file"));
+      }
+      file.close();
+    }
+}
 
 void DrawDigitInvert(int offset, int r,int g,int b, int n)
 {
